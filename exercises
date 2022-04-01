@@ -1,0 +1,165 @@
+Big Query questions related to the new_york_citibike public data. 
+
+_________________________________________________________________________________________________________________________________________________________
+
+a) Which top 10 BikeId has most of the trip duration
+------------
+        SELECT bikeid, tripduration 
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips` 
+        ORDER BY tripduration DESC
+        LIMIT 10;
+
+bikeid	tripduration
+30503	19510049
+30875	15962256
+16777	15020934
+16533	13931824
+18504	13586276
+30446	12479323
+33252	11749576
+19957	11699746
+15336	11138807
+24939	10283682
+
+b) which two stations have the longest travel time
+note: my interpretation of this question is the longest duration a bike is being used between two given stations 
+------------
+        SELECT start_station_name,end_station_name ,MAX(tripduration) travel
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips` 
+        GROUP BY start_station_name,end_station_name
+        ORDER BY travel DESC
+        LIMIT 2;
+
+Row	      start_station_name	    		end_station_name	       travel	
+1	      Hope St & Union Ave     		   Nassau St & Navy St        19510049
+2	Grand Army Plaza & Plaza St West       NYCBS DEPOT - DELANCEY     15962256
+
+
+c) Which station is more popular (frequently used station)
+note: used station start and end
+note: Excluding null values for location
+------------   
+        SELECT start_station_id,start_station_name, COUNT(start_station_name) AS visits
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips` 
+        WHERE start_station_id >= 1
+        GROUP BY start_station_name,start_station_id
+        ORDER BY visits DESC 
+        LIMIT 4
+ 
+
+Row	start_station_id	start_station_name	        visits
+2	    497			E 17 St & Broadway		867,794
+
+
+d) Which station has most number of bikes available for rent
+------------
+Note: research top function
+        SELECT station_id, name,MAX(num_bikes_available) bike_availability
+        FROM `bigquery-public-data.new_york_citibike.citibike_stations`  
+        GROUP BY name,station_id,num_bikes_available
+        ORDER BY num_bikes_available DESC 
+        LIMIT 1
+
+
+Row	station_id	             name			     bike_availability
+1 	  445		       E 10 St & Avenue A             79
+
+
+e) What are the rush hours when most trips are taken
+------------
+        SELECT a.hour_of_day, COUNT((a.hour_of_day)) hour_count
+         FROM (
+        SELECT  EXTRACT (hour FROM starttime) AS hour_of_day
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips`
+        ) a
+        GROUP BY a.hour_of_day
+        ORDER BY a.hour_of_day DESC
+
+hour_of_day		        hour_count
+17				5232747
+18				5024723
+8				4161676
+16				3798414
+19				3517025
+9				3346692
+
+ e2) Another option: See the number of trips before or after a given hour 
+ ------------
+        SELECT  COUNT(*) 
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips`
+        WHERE EXTRACT (hour FROM starttime) > 12; 
+        --WHERE EXTRACT (hour FROM starttime) <= 12;
+        --WHERE EXTRACT (hour FROM stoptime) > 12;
+        --WHERE EXTRACT (hour FROM stoptime) <= 12;
+
+
+f) What are the most popular stations to start a trip
+------------
+
+        SELECT x.start_station_name, x.num_station
+        FROM (
+        SELECT start_station_name,COUNT(start_station_name) num_station 
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips`
+        WHERE start_station_id >= 1 
+        GROUP BY start_station_name
+        ) x
+        GROUP BY x.start_station_name, x.num_station
+        ORDER BY  x.num_station DESC
+        LIMIT 3
+
+Row	start_station_id	start_station_name	        visits
+1	519			Pershing Square North           438077
+2	497			E 17 St & Broadway		423334
+3	435			W 21 St & 6 Ave                 403795
+
+
+
+g) What category (usertype) of users take most of the bike-trips
+------------
+        SELECT usertype,COUNT(usertype) user_trips
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips` 
+        GROUP BY usertype
+
+Row	usertype	user_trips	
+1	Subscriber      46917572
+2	Customer        6191149
+3			5828994   --Random Null results 
+
+h) What are the top 5 routes taken by women in the year 2013
+ notes: route should calculated as start and end from same location. 
+------------ 
+        SELECT x.route, COUNT((x.route)) route_taken
+        FROM (
+        SELECT CONCAT(start_station_name,'-',end_station_name) route, EXTRACT (year FROM starttime) AS start_year
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips`
+        WHERE gender = "female"
+        ) x
+         WHERE x.start_year = 2013
+        GROUP BY x.route, x.start_year
+        ORDER BY route_taken DESC
+
+Row		         route						route_taken	
+1		West Thames St-Vesey Pl & River Terrace				633
+2		Vesey Pl & River Terrace-West Thames St                         470
+3		Central Park S & 6 Ave-Central Park S & 6 Ave                   460
+4	        West St & Chambers St-West St & Chambers St                     442
+5	        Washington Square E-University Pl & E 14 St                     420
+
+
+
+i) Write a query to extract Day,Hour,Year from Timestamp (use starttime column)
+------------
+        SELECT starttime,
+        EXTRACT(day FROM starttime) AS day_start,
+        EXTRACT(hour FROM starttime ) AS hour_start,
+        EXTRACT(year FROM starttime) AS year_start
+        FROM `bigquery-public-data.new_york_citibike.citibike_trips`
+        WHERE starttime = '2016-08-29T14:45:02';
+
+
+Row	starttime				day_start	hour_start	year_start	
+1	2016-08-29T14:45:02                       29              14   		2016
+
+
+
+_________________________________________________________________________________________________________________________________________________________
